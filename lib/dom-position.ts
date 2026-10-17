@@ -76,24 +76,152 @@ function caretRangeAt(x: number, y: number): Range | null {
   }
 }
 
-export function measureViewportOffset(root: HTMLElement, index: TextIndex, topPx: number): number | null {
-  const x = Math.max(8, Math.min(window.innerWidth / 2, window.innerWidth - 8));
-  const yPositions = [topPx, topPx + 24, topPx + 64, topPx + 120];
-  for (const y of yPositions) {
-    const range = caretRangeAt(x, y);
-    if (!range || !root.contains(range.startContainer)) continue;
-    const direct = offsetFromPoint(index, range.startContainer, range.startOffset);
-    if (direct != null) return direct;
-    if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
-      const element = range.startContainer as Element;
-      const child = element.childNodes[range.startOffset] ?? element;
-      const text = firstText(child) ?? firstText(element);
-      if (!text || !root.contains(text)) continue;
-      const found = offsetFromPoint(index, text, 0);
-      if (found != null) return found;
+function caretOffsetAt(root: HTMLElement, index: TextIndex, x: number, y: number): number | null {
+  const range = caretRangeAt(x, y);
+  if (!range || !root.contains(range.startContainer)) return null;
+  const direct = offsetFromPoint(index, range.startContainer, range.startOffset);
+  if (direct != null) return direct;
+  if (range.startContainer.nodeType !== Node.ELEMENT_NODE) return null;
+  const element = range.startContainer as Element;
+  const child = element.childNodes[range.startOffset] ?? element;
+  const text = firstText(child) ?? firstText(element);
+  if (!text || !root.contains(text)) return null;
+  return offsetFromPoint(index, text, 0);
+}
+
+function columnXPositions(root: HTMLElement): number[] {
+  const box = root.getBoundingClientRect();
+  const left = Math.max(8, Math.min(window.innerWidth - 8, box.left + 12));
+  const right = Math.max(left, Math.min(window.innerWidth - 8, box.right - 12));
+  const mid = (left + right) / 2;
+  return [left, (left + mid) / 2, mid, (mid + right) / 2, right];
+}
+
+function charBox(node: Text, offset: number): DOMRect | null {
+  const length = node.data.length;
+  if (length === 0) return null;
+  const start = Math.max(0, Math.min(offset, length - 1));
+  const range = document.createRange();
+  range.setStart(node, start);
+  range.setEnd(node, start + 1);
+  const rect = range.getClientRects()[0];
+  if (!rect || (rect.width === 0 && rect.height === 0)) return null;
+  return rect;
+}
+
+function nearestCharBox(node: Text, offset: number): { offset: number; rect: DOMRect } | null {
+  const length = node.data.length;
+  const direct = charBox(node, offset);
+  if (direct) return { offset: Math.max(0, Math.min(offset, length - 1)), rect: direct };
+  for (let step = 1; step <= 8; step++) {
+    const next = offset + step;
+    if (next < length) {
+      const rect = charBox(node, next);
+      if (rect) return { offset: next, rect };
+    }
+    const prev = offset - step;
+    if (prev >= 0) {
+      const rect = charBox(node, prev);
+      if (rect) return { offset: prev, rect };
     }
   }
   return null;
+}
+
+function firstOffsetOnOrBelow(node: Text, nodeStart: number, lineTop: number): number | null {
+  const length = node.data.length;
+  if (length === 0) return null;
+  let low = 0;
+  let high = length - 1;
+  let best: number | null = null;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const sample = nearestCharBox(node, mid);
+    if (!sample) {
+      high = mid - 1;
+      continue;
+    }
+    if (sample.rect.bottom < lineTop) low = Math.max(low + 1, sample.offset + 1);
+    else {
+      best = nodeStart + sample.offset;
+      high = mid - 1;
+    }
+  }
+  return best;
+}
+
+function hasBox(rects: DOMRectList, test: (rect: DOMRect) => boolean): boolean {
+  for (let i = 0; i < rects.length; i++) {
+    const rect = rects[i];
+    if (rect.width === 0 && rect.height === 0) continue;
+    if (test(rect)) return true;
+  }
+  return false;
+}
+
+function lastVisibleLineStart(node: Text, nodeStart: number): number | null {
+  const length = node.data.length;
+  if (length === 0) return null;
+  const viewBottom = window.innerHeight;
+  let low = 0;
+  let high = length - 1;
+  let last = -1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const sample = nearestCharBox(node, mid);
+    if (!sample) {
+      high = mid - 1;
+      continue;
+    }
+    if (sample.rect.bottom <= 0) low = Math.max(low + 1, sample.offset + 1);
+    else if (sample.rect.top >= viewBottom) high = mid - 1;
+    else {
+      last = sample.offset;
+      low = Math.max(low + 1, sample.offset + 1);
+    }
+  }
+  if (last < 0) return nodeStart;
+  const lineTop = charBox(node, last)?.top;
+  if (lineTop == null) return nodeStart + last;
+  let start = last;
+  while (start > 0) {
+    const rect = charBox(node, start - 1);
+    if (!rect || Math.abs(rect.top - lineTop) > 3) break;
+    start -= 1;
+  }
+  return nodeStart + start;
+}
+
+function offsetFromLayout(index: TextIndex, topPx: number): number | null {
+  const viewBottom = window.innerHeight;
+  let lastVisible: { node: Text; start: number } | null = null;
+  const range = document.createRange();
+  for (const entry of index.nodes) {
+    if (entry.node.data.trim().length === 0) continue;
+    range.selectNodeContents(entry.node);
+    const rects = range.getClientRects();
+    if (hasBox(rects, (rect) => rect.bottom > 0 && rect.top < viewBottom)) lastVisible = entry;
+    const onReadingLine = hasBox(rects, (rect) => rect.bottom >= topPx && rect.top < viewBottom);
+    if (!onReadingLine) continue;
+    const found = firstOffsetOnOrBelow(entry.node, entry.start, topPx);
+    if (found != null) return found;
+    return entry.start;
+  }
+  if (lastVisible) return lastVisibleLineStart(lastVisible.node, lastVisible.start);
+  return index.nodes[0]?.start ?? null;
+}
+
+export function measureViewportOffset(root: HTMLElement, index: TextIndex, topPx: number): number | null {
+  if (index.nodes.length === 0 || index.text.length === 0) return null;
+  const ys = [topPx, topPx + 18, topPx + 42, topPx + 84, topPx + 140];
+  for (const y of ys) {
+    if (y < 0 || y > window.innerHeight - 4) continue;
+    for (const x of columnXPositions(root)) {
+      const found = caretOffsetAt(root, index, x, y);
+      if (found != null) return found;
+    }
+  }
+  return offsetFromLayout(index, topPx);
 }
 
 export function scrollToOffset(index: TextIndex, offset: number, topPx: number) {
