@@ -50,8 +50,13 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
     const index = indexRef.current;
     if (!index) return;
     const offset = resolveOffset(index.text, progress.charOffset, progress.snippet);
-    scrollToOffset(index, offset, readingTop());
     appliedProgressRef.current = progress;
+    const go = () => {
+      if (indexRef.current !== index) return;
+      scrollToOffset(index, offset, readingTop());
+    };
+    go();
+    window.requestAnimationFrame(go);
   }
 
   useEffect(() => {
@@ -90,6 +95,7 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
     const index = indexText(root);
     indexRef.current = index;
     let cancelled = false;
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
     (async () => {
       try {
@@ -116,6 +122,11 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
       const progress = appliedProgressRef.current;
       if (progress) applyProgress(progress);
     };
+    void document.fonts?.ready.then(() => {
+      if (cancelled) return;
+      const progress = appliedProgressRef.current;
+      if (progress) applyProgress(progress);
+    });
     for (const image of images) {
       if (!image.complete) image.addEventListener("load", onImageLoad);
     }
@@ -149,7 +160,7 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
     setHint(
       selected
         ? "Markiert. In Edge: Rechtsklick auf die Markierung, dann Auswahl vorlesen. Auf dem Handy: lange drücken, dann Auswahl vorlesen."
-        : "An dieser Stelle gibt es keinen weiteren Text.",
+        : "Die Stelle wird gespeichert. Die Markierung bis zum Ende hat nicht geklappt.",
     );
 
     const progress: Progress = {
