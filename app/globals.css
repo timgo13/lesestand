@@ -1,0 +1,147 @@
+:root {
+  --bar-h: 4.5rem;
+  color-scheme: light dark;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button,
+.file-button {
+  cursor: pointer;
+}
+
+button:disabled,
+.file-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+:focus-visible {
+  outline: var(--line-width) solid;
+  outline-offset: var(--half-line);
+}
+
+.form-error {
+  color: red;
+}
+
+.dropzone {
+  border: var(--line-width) solid;
+  padding: 0 var(--one-line) var(--half-line);
+  border-radius: var(--half-line);
+  text-align: center;
+}
+
+.dropzone.dragging {
+  background: var(--color);
+  color: var(--background-color);
+}
+
+.file-button {
+  display: inline-block;
+  box-sizing: border-box;
+  padding: var(--half-line);
+  border: var(--line-width) solid;
+  text-transform: uppercase;
+}
+
+.hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.book-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.book {
+  text-align: center;
+  border-top: var(--line-width) solid;
+  padding-top: var(--half-line);
+}
+
+.book-link {
+  text-decoration: none;
+}
+
+button.danger {
+  color: red;
+}
+
+button.primary {
+  background: var(--color);
+  color: var(--background-color);
+}
+
+button.primary:is(:hover, :focus-visible) {
+  background: var(--background-color);
+  color: var(--color);
+}
+
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(95%, var(--column-width));
+  box-sizing: border-box;
+  margin: 0;
+  background: var(--background-color);
+  z-index: 2;
+}
+
+.reader-title,
+.sync-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar .hint {
+  flex-basis: 100%;
+  text-transform: none;
+  text-align: center;
+}
+
+.novel {
+  padding-top: calc(var(--bar-h) + var(--one-line));
+  padding-bottom: calc(var(--one-line) * 4);
+  overflow-wrap: anywhere;
+}
+
+.banner {
+  position: fixed;
+  top: var(--bar-h);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(95%, var(--column-width));
+  box-sizing: border-box;
+  border: var(--line-width) solid;
+  border-radius: var(--half-line);
+  padding: 0 var(--one-line) var(--half-line);
+  background: var(--background-color);
+  z-index: 1;
+}
+
+.banner p {
+  margin: var(--half-line) 0 0;
+}
+
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--half-line);
+  margin: var(--half-line) 0;
+}
