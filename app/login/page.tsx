@@ -8,7 +8,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   return (
-    <main>
+    <main className="login">
       <LoginForm nextPath={safeNextPath(params.next)} />
     </main>
   );

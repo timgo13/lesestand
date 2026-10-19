@@ -37,9 +37,9 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     <>
       <header>
         <h1>Lesestand</h1>
+        <p className="muted">Derselbe Zugangscode auf Handy und PC.</p>
       </header>
       <form onSubmit={onSubmit}>
-        <p>Derselbe Zugangscode auf Handy und PC.</p>
         <label htmlFor="password">Zugangscode</label>
         <input
           id="password"
@@ -52,7 +52,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
           required
         />
         {error ? <p className="form-error">{error}</p> : null}
-        <button type="submit" disabled={pending}>
+        <button type="submit" className="primary" disabled={pending}>
           {pending ? "Wird geprüft…" : "Öffnen"}
         </button>
       </form>

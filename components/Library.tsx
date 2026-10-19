@@ -103,15 +103,15 @@ export function Library() {
 
   return (
     <>
-      <header>
-        <h1>Lesestand</h1>
-        <p>HTML-Romane hochladen. Handy und PC bleiben an derselben Textstelle.</p>
-      </header>
-      <nav>
-        <button type="button" onClick={() => void logout()}>
+      <header className="page-header">
+        <div>
+          <h1>Lesestand</h1>
+          <p className="muted">HTML-Romane hochladen. Handy und PC bleiben an derselben Textstelle.</p>
+        </div>
+        <button type="button" className="ghost" onClick={() => void logout()}>
           Abmelden
         </button>
-      </nav>
+      </header>
 
       <aside
         className={dragging ? "dropzone dragging" : "dropzone"}
@@ -131,7 +131,7 @@ export function Library() {
           void uploadFiles([...event.dataTransfer.files]);
         }}
       >
-        <label className="file-button">
+        <label className={busy ? "button primary file-button disabled" : "button primary file-button"}>
           Datei wählen
           <input
             className="hidden-input"
@@ -146,14 +146,14 @@ export function Library() {
             }}
           />
         </label>
-        <p>oder HTML-Dateien hierher ziehen</p>
+        <p className="drag-hint">oder HTML-Dateien hierher ziehen</p>
       </aside>
 
-      {status ? <p>{status}</p> : null}
+      {status ? <p className="status">{status}</p> : null}
       {error ? <p className="form-error">{error}</p> : null}
-      {loading ? <p>Bibliothek wird geladen…</p> : null}
+      {loading ? <p className="status">Bibliothek wird geladen…</p> : null}
       {!loading && books.length === 0 && !error ? (
-        <p>Noch keine Romane. Lade eine HTML-Datei hoch.</p>
+        <p className="status">Noch keine Romane. Lade eine HTML-Datei hoch.</p>
       ) : null}
 
       <ul className="book-list">
@@ -164,19 +164,24 @@ export function Library() {
                 {book.title}
               </Link>
             </h2>
-            <p>
+            <p className="muted">
               {book.filename}
               {book.size ? ` · ${formatBytes(book.size)}` : ""}
               {book.progress ? ` · ${formatWhen(book.progress.updatedAt)}` : ""}
             </p>
-            <p>
-              {book.progress?.snippet.trim()
-                ? `Zuletzt: „${book.progress.snippet.trim()}“`
-                : "Noch nicht begonnen"}
-            </p>
-            <button className="danger" type="button" onClick={() => void remove(book)}>
-              Löschen
-            </button>
+            {book.progress?.snippet.trim() ? (
+              <p className="excerpt">„{book.progress.snippet.trim()}“</p>
+            ) : (
+              <p className="muted">Noch nicht begonnen</p>
+            )}
+            <div className="book-actions">
+              <Link className="button primary" href={`/read/${book.id}`}>
+                {book.progress ? "Weiterlesen" : "Lesen"}
+              </Link>
+              <button className="ghost danger" type="button" onClick={() => void remove(book)}>
+                Löschen
+              </button>
+            </div>
           </li>
         ))}
       </ul>

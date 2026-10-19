@@ -3,7 +3,7 @@ import { del, get, issueSignedToken, presignUrl, put } from "@vercel/blob";
 import { decodeHtmlBytes } from "@/lib/decode-html";
 import { getRedis } from "@/lib/redis";
 import { cleanFilename, prepareNovel } from "@/lib/sanitize";
-import type { Book, NovelContent, Progress, PublicBook } from "@/lib/types";
+import type { Book, NovelContent, Progress, ProgressInput, PublicBook } from "@/lib/types";
 
 const BOOKS_KEY = "books";
 const MAX_HTML_BYTES = 40 * 1024 * 1024;
@@ -29,8 +29,7 @@ export function isProgress(value: unknown): value is Progress {
   return (
     typeof progress.charOffset === "number" &&
     typeof progress.snippet === "string" &&
-    typeof progress.updatedAt === "number" &&
-    typeof progress.deviceId === "string"
+    typeof progress.updatedAt === "number"
   );
 }
 
@@ -190,14 +189,8 @@ export async function getProgress(id: string): Promise<Progress | null> {
   return isProgress(value) ? value : null;
 }
 
-export async function saveProgress(
-  id: string,
-  progress: Progress,
-): Promise<{ saved: boolean; progress: Progress }> {
-  const current = await getProgress(id);
-  if (current && current.updatedAt > progress.updatedAt) {
-    return { saved: false, progress: current };
-  }
+export async function saveProgress(id: string, input: ProgressInput): Promise<Progress> {
+  const progress: Progress = { ...input, updatedAt: Date.now() };
   await getRedis().set(`progress:${id}`, progress);
-  return { saved: true, progress };
+  return progress;
 }

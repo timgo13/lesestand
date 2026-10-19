@@ -12,8 +12,9 @@ export type Progress = {
   charOffset: number;
   snippet: string;
   updatedAt: number;
-  deviceId: string;
 };
+
+export type ProgressInput = Pick<Progress, "charOffset" | "snippet">;
 
 export type PublicBook = {
   id: string;

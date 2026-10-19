@@ -1,147 +1,428 @@
+/* Farben: hell = snow / schwarz, dunkel = #222830 / weiß (wie bisher). */
 :root {
-  --bar-h: 4.5rem;
   color-scheme: light dark;
+
+  --background-color: snow;
+  --color: #000;
+  --danger: #b3261e;
+
+  --ui-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family: "Iowan Old Style", Charter, "Bitstream Charter", Georgia, "Noto Serif", serif;
+
+  --column-width: 40rem;
+  --radius: 0.75rem;
+  --bar-h: 3.5rem;
+
+  --muted: color-mix(in srgb, var(--color) 62%, var(--background-color));
+  --border: color-mix(in srgb, var(--color) 16%, var(--background-color));
+  --surface: color-mix(in srgb, var(--color) 4%, var(--background-color));
+  --surface-hover: color-mix(in srgb, var(--color) 9%, var(--background-color));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-color: #222830;
+    --color: #fff;
+    --danger: #ff8a80;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background-color: var(--background-color);
+  color: var(--color);
 }
 
 body {
   min-height: 100vh;
+  margin: 0 auto;
+  width: min(100% - 2rem, var(--column-width));
+  font-family: var(--ui-font);
+  line-height: 1.5;
 }
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color);
+  outline-offset: 2px;
+}
+
+/* ---------- Buttons ---------- */
 
 button,
-.file-button {
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
-button:disabled,
-.file-button:disabled {
+button:hover,
+.button:hover {
+  background: var(--surface-hover);
+}
+
+button.primary,
+.button.primary {
+  background: var(--color);
+  border-color: var(--color);
+  color: var(--background-color);
+}
+
+button.primary:hover,
+.button.primary:hover {
+  background: color-mix(in srgb, var(--color) 82%, var(--background-color));
+}
+
+button.ghost {
+  border-color: transparent;
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+button:disabled {
   opacity: 0.55;
   cursor: wait;
 }
 
-:focus-visible {
-  outline: var(--line-width) solid;
-  outline-offset: var(--half-line);
+/* ---------- Seiten ---------- */
+
+main {
+  padding: 1.5rem 0 4rem;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+h1,
+h2 {
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 1.75rem;
+}
+
+h2 {
+  font-size: 1.15rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.page-header p {
+  margin: 0.35rem 0 0;
 }
 
 .form-error {
-  color: red;
+  color: var(--danger);
 }
 
+.status {
+  color: var(--muted);
+}
+
+/* ---------- Bibliothek ---------- */
+
 .dropzone {
-  border: var(--line-width) solid;
-  padding: 0 var(--one-line) var(--half-line);
-  border-radius: var(--half-line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.75rem 1rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
   text-align: center;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.dropzone p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .dropzone.dragging {
-  background: var(--color);
-  color: var(--background-color);
+  border-color: var(--color);
+  background: var(--surface-hover);
 }
 
 .file-button {
-  display: inline-block;
-  box-sizing: border-box;
-  padding: var(--half-line);
-  border: var(--line-width) solid;
-  text-transform: uppercase;
+  position: relative;
+}
+
+.file-button.disabled {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .hidden-input {
   position: absolute;
   width: 1px;
   height: 1px;
-  padding: 0;
   margin: -1px;
+  padding: 0;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
 }
 
+@media (hover: none) {
+  .dropzone .drag-hint {
+    display: none;
+  }
+}
+
 .book-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
   list-style: none;
-  padding-left: 0;
 }
 
 .book {
-  text-align: center;
-  border-top: var(--line-width) solid;
-  padding-top: var(--half-line);
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.book h2 {
+  overflow-wrap: anywhere;
 }
 
 .book-link {
   text-decoration: none;
 }
 
-button.danger {
-  color: red;
+.book-link:hover {
+  text-decoration: underline;
 }
 
-button.primary {
-  background: var(--color);
-  color: var(--background-color);
+.book p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
 }
 
-button.primary:is(:hover, :focus-visible) {
+.book .excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-family);
+  font-size: 1rem;
+  font-style: italic;
+}
+
+.book-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+/* ---------- Login ---------- */
+
+.login {
+  display: grid;
+  min-height: 100vh;
+  align-content: center;
+  max-width: 24rem;
+  margin: 0 auto;
+}
+
+.login form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.login p {
+  margin: 0.35rem 0 0;
+}
+
+label {
+  font-weight: 600;
+}
+
+input[type="password"] {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: var(--background-color);
-  color: var(--color);
+  color: inherit;
+  font: inherit;
 }
+
+/* ---------- Leseansicht ---------- */
 
 .topbar {
   position: fixed;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(95%, var(--column-width));
-  box-sizing: border-box;
-  margin: 0;
-  background: var(--background-color);
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem max(1rem, calc((100% - var(--column-width)) / 2));
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background-color) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-family: var(--ui-font);
+  font-size: 0.95rem;
   z-index: 2;
 }
 
-.reader-title,
-.sync-label {
+.topbar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbar-back:hover {
+  color: var(--color);
+}
+
+.topbar-title {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
 }
 
-.topbar .hint {
-  flex-basis: 100%;
-  text-transform: none;
-  text-align: center;
-}
-
-.novel {
-  padding-top: calc(var(--bar-h) + var(--one-line));
-  padding-bottom: calc(var(--one-line) * 4);
-  overflow-wrap: anywhere;
-}
-
-.banner {
-  position: fixed;
-  top: var(--bar-h);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(95%, var(--column-width));
-  box-sizing: border-box;
-  border: var(--line-width) solid;
-  border-radius: var(--half-line);
-  padding: 0 var(--one-line) var(--half-line);
+/* Meldung schwebt unter der Leiste, damit sich der Text beim Speichern nicht verschiebt. */
+.topbar-status {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: max(1rem, calc((100% - var(--column-width)) / 2));
+  max-width: calc(100% - 2rem);
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
   background: var(--background-color);
-  z-index: 1;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color) 14%, transparent);
+  font-size: 0.875rem;
 }
 
-.banner p {
-  margin: var(--half-line) 0 0;
+.topbar-status.error {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
-.banner-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--half-line);
-  margin: var(--half-line) 0;
+@media (max-width: 30rem) {
+  .topbar-back span {
+    display: none;
+  }
+}
+
+/* Lesetext */
+.novel {
+  padding-top: calc(var(--bar-h) + 1.5rem);
+  padding-bottom: 40vh;
+  font-family: var(--font-family);
+  font-size: clamp(1.125rem, 1.05rem + 0.35vw, 1.3rem);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+/* :where hat keine Spezifität, damit eigene Formatierungen des Buches Vorrang behalten. */
+:where(.novel) :where(p, ul, ol, blockquote, pre, table, figure) {
+  margin-block: 0 1em;
+}
+
+:where(.novel) :where(p) {
+  text-wrap: pretty;
+}
+
+:where(.novel) :where(h1, h2, h3, h4, h5, h6) {
+  margin-block: 1.8em 0.6em;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+:where(.novel) :where(blockquote) {
+  padding-left: 1em;
+  border-left: 3px solid var(--border);
+}
+
+:where(.novel) :where(hr) {
+  margin-block: 2em;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+:where(.novel) :where(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+:where(.novel) :where(td, th) {
+  padding: 0.3em 0.6em;
+  border: 1px solid var(--border);
+}
+
+:where(.novel) :where(pre) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.novel-loading {
+  color: var(--muted);
+  font-family: var(--ui-font);
+  font-size: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }

@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, readError } from "@/lib/client-api";
-import { getDeviceId } from "@/lib/device";
-import { captureAnchor, indexText, readingTop, scrollToOffset, selectFromOffset, type TextIndex } from "@/lib/dom-position";
+import { captureAnchor, indexText, readingTop, scrollToOffset, type TextIndex } from "@/lib/dom-position";
 import { resolveOffset } from "@/lib/position";
 import { READER_GUARD_CSS } from "@/lib/reader-guard";
 import type { Progress } from "@/lib/types";
+
+type Status = { kind: "idle" | "ok" | "error"; text: string };
 
 function isPrivateBlobUrl(value: string): boolean {
   try {
@@ -21,19 +22,17 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
   const articleRef = useRef<HTMLElement>(null);
   const barRef = useRef<HTMLElement>(null);
   const indexRef = useRef<TextIndex | null>(null);
-  const appliedProgressRef = useRef<Progress | null>(null);
-  const deviceIdRef = useRef("");
 
   const [content, setContent] = useState<{ styles: string; body: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [syncLabel, setSyncLabel] = useState("Wird geladen…");
-  const [hint, setHint] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>({ kind: "idle", text: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     document.title = `${title} · Lesestand`;
   }, [title]);
 
+  // Die Höhe der Leiste bestimmt, wo der Text beginnt und welche Zeile als "aktuelle Stelle" gilt.
   useEffect(() => {
     const bar = barRef.current;
     if (!bar) return;
@@ -44,24 +43,11 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
     const observer = new ResizeObserver(applyHeight);
     observer.observe(bar);
     return () => observer.disconnect();
-  }, [hint, syncLabel, loadError, content]);
+  }, []);
 
-  function applyProgress(progress: Progress) {
-    const index = indexRef.current;
-    if (!index) return;
-    const offset = resolveOffset(index.text, progress.charOffset, progress.snippet);
-    appliedProgressRef.current = progress;
-    const go = () => {
-      if (indexRef.current !== index) return;
-      scrollToOffset(index, offset, readingTop());
-    };
-    go();
-    window.requestAnimationFrame(go);
-  }
-
+  // Buch laden.
   useEffect(() => {
     let cancelled = false;
-    deviceIdRef.current = getDeviceId();
     (async () => {
       try {
         const response = await apiFetch(`/api/books/${bookId}`);
@@ -78,10 +64,7 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
         }
         setContent({ styles: novel.styles, body: novel.body });
       } catch (error) {
-        if (!cancelled) {
-          setLoadError(error instanceof Error ? error.message : "Buch konnte nicht geladen werden");
-          setSyncLabel("Nicht geladen");
-        }
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Buch konnte nicht geladen werden");
       }
     })();
     return () => {
@@ -89,108 +72,79 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
     };
   }, [bookId]);
 
+  // Gespeicherte Stelle laden und dorthin scrollen.
   useEffect(() => {
     const root = articleRef.current;
     if (!content || !root) return;
     const index = indexText(root);
     indexRef.current = index;
     let cancelled = false;
+    let restoring = true;
+    let target: Progress | null = null;
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+    const jump = () => {
+      if (cancelled || !restoring || !target) return;
+      scrollToOffset(index, resolveOffset(index.text, target.charOffset, target.snippet), readingTop());
+    };
+    // Bilder und Schriften verschieben den Text nachträglich. Nachkorrigieren, bis der Nutzer selbst scrollt.
+    const stopRestoring = () => {
+      restoring = false;
+    };
+    const interactions = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
+    for (const name of interactions) window.addEventListener(name, stopRestoring, { passive: true, once: true });
+    const images = [...root.querySelectorAll("img")].filter((image) => !image.complete);
+    for (const image of images) image.addEventListener("load", jump);
+    void document.fonts?.ready.then(jump);
 
     (async () => {
       try {
         const response = await apiFetch(`/api/progress/${bookId}`);
         const data = (await response.json().catch(() => ({}))) as { progress?: Progress | null; error?: string };
         if (!response.ok) throw new Error(readError(data, "Lesestand konnte nicht geladen werden"));
-        if (cancelled) return;
-        if (data.progress) {
-          applyProgress(data.progress);
-          setSyncLabel("Stand geladen");
-        } else {
-          setSyncLabel("Bereit");
-        }
+        if (cancelled || !data.progress) return;
+        target = data.progress;
+        jump();
+        window.requestAnimationFrame(jump);
       } catch (error) {
         if (cancelled) return;
-        setLoadError(error instanceof Error ? error.message : "Lesestand konnte nicht geladen werden");
-        setSyncLabel("Lesestand fehlt");
+        setStatus({ kind: "error", text: error instanceof Error ? error.message : "Lesestand konnte nicht geladen werden" });
       }
     })();
 
-    const images = [...root.querySelectorAll("img")];
-    const onImageLoad = () => {
-      if (cancelled) return;
-      const progress = appliedProgressRef.current;
-      if (progress) applyProgress(progress);
-    };
-    void document.fonts?.ready.then(() => {
-      if (cancelled) return;
-      const progress = appliedProgressRef.current;
-      if (progress) applyProgress(progress);
-    });
-    for (const image of images) {
-      if (!image.complete) image.addEventListener("load", onImageLoad);
-    }
-
     return () => {
       cancelled = true;
-      for (const image of images) image.removeEventListener("load", onImageLoad);
+      for (const name of interactions) window.removeEventListener(name, stopRestoring);
+      for (const image of images) image.removeEventListener("load", jump);
     };
-    // applyProgress only reads refs and scrolls.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId, content]);
 
-  function goHome(event: React.MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-    window.location.href = "/";
-  }
-
-  async function markFromHere() {
+  async function savePosition() {
     const root = articleRef.current;
     const index = indexRef.current;
     if (!root || !index || index.text.length === 0) {
-      setHint("Diese Datei enthält keinen Text.");
+      setStatus({ kind: "error", text: "Diese Datei enthält keinen Text." });
       return;
     }
     const anchor = captureAnchor(root, index, readingTop());
     if (!anchor) {
-      setHint("Die Textstelle konnte nicht erkannt werden.");
+      setStatus({ kind: "error", text: "Die Textstelle konnte nicht erkannt werden." });
       return;
     }
-    const selected = selectFromOffset(index, anchor.charOffset);
-    setHint(
-      selected
-        ? "Markiert. In Edge: Rechtsklick auf die Markierung, dann Auswahl vorlesen. Auf dem Handy: lange drücken, dann Auswahl vorlesen."
-        : "Die Stelle wird gespeichert. Die Markierung bis zum Ende hat nicht geklappt.",
-    );
 
-    const progress: Progress = {
-      charOffset: anchor.charOffset,
-      snippet: anchor.snippet,
-      updatedAt: Date.now(),
-      deviceId: deviceIdRef.current || getDeviceId(),
-    };
-    appliedProgressRef.current = progress;
     setSaving(true);
-    setSyncLabel("Speichert…");
+    setStatus({ kind: "idle", text: "Speichert…" });
     try {
-      const response = await fetch(`/api/progress/${bookId}`, {
+      const response = await apiFetch(`/api/progress/${bookId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(progress),
-        cache: "no-store",
+        body: JSON.stringify(anchor),
       });
-      if (response.status === 401) {
-        window.location.href = `/login?next=${encodeURIComponent(`/read/${bookId}`)}`;
-        return;
-      }
-      const data = (await response.json().catch(() => null)) as { saved?: boolean; error?: string } | null;
-      if (!response.ok || !data?.saved) {
-        setSyncLabel("Speichern fehlgeschlagen");
-        return;
-      }
-      setSyncLabel("Gespeichert");
-    } catch {
-      setSyncLabel("Speichern fehlgeschlagen");
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(readError(data, "Speichern fehlgeschlagen"));
+      setStatus({ kind: "ok", text: "Gespeichert" });
+    } catch (error) {
+      setStatus({ kind: "error", text: error instanceof Error ? error.message : "Speichern fehlgeschlagen" });
     } finally {
       setSaving(false);
     }
@@ -199,17 +153,19 @@ export function Reader({ bookId, title }: { bookId: string; title: string }) {
   return (
     <>
       <nav className="topbar" ref={barRef}>
-        <a href="/" onClick={(event) => goHome(event)}>
-          Bibliothek
+        {/* Bewusst ein normaler Link: der Seitenwechsel entfernt die fremden Styles des Buches vollständig. */}
+        <a href="/" className="topbar-back" aria-label="Zur Bibliothek">
+          ← <span>Bibliothek</span>
         </a>
-        <span className="reader-title">{title}</span>
-        <button type="button" onClick={() => void markFromHere()} disabled={!content || saving}>
-          Ab hier markieren
+        <span className="topbar-title">{title}</span>
+        <button type="button" className="primary" onClick={() => void savePosition()} disabled={!content || saving}>
+          Stelle speichern
         </button>
-        <span className="sync-label" aria-live="polite">
-          {syncLabel}
-        </span>
-        {hint ? <span className="hint">{hint}</span> : null}
+        {status.text ? (
+          <span className={`topbar-status ${status.kind}`} role="status">
+            {status.text}
+          </span>
+        ) : null}
       </nav>
 
       {content ? <style>{content.styles}</style> : null}

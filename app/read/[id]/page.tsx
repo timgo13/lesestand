@@ -18,10 +18,10 @@ export default async function ReadPage({ params }: { params: Promise<{ id: strin
     const message = publicError(error, "Das Buch konnte nicht geladen werden");
     return (
       <main>
-        <header>
+        <header className="page-header">
           <h1>Lesestand</h1>
         </header>
-        <p>{message}</p>
+        <p className="form-error">{message}</p>
       </main>
     );
   }

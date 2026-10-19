@@ -44,8 +44,8 @@ export async function PUT(request: Request, context: Context) {
   try {
     const book = await getBook(id);
     if (!book) return NextResponse.json({ error: "Buch nicht gefunden" }, { status: 404 });
-    const result = await saveProgress(id, progress);
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    const saved = await saveProgress(id, progress);
+    return NextResponse.json({ progress: saved }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ error: publicError(error, "Lesestand konnte nicht gespeichert werden") }, { status: 500 });
   }
